@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自驾车差旅报销轨迹核查工具</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Papa Parse CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <!-- SheetJS CDN -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- 密码门禁遮罩 -->
+    <div id="authOverlay" class="auth-overlay">
+        <div class="auth-card">
+            <h2>🔐 访问验证</h2>
+            <p id="authMessage" class="auth-msg">请输入访问密码</p>
+            <input type="password" id="authPassword" class="auth-input" placeholder="请输入密码" autocomplete="off">
+            <div id="authError" class="auth-error" style="display:none;"></div>
+            <button id="authSubmitBtn" class="btn btn-primary btn-block">验证</button>
+            <p class="hint" style="margin-top:12px;">首次使用请先设置密码</p>
+            <div style="margin-top:8px;">
+                <button id="authResetBtn" class="btn btn-xs" style="color:var(--text-muted);">重置密码</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 顶部工具栏 -->
+    <header class="top-bar">
+        <h1>🚗 自驾车差旅报销轨迹核查工具</h1>
+        <div class="api-key-area">
+            <label for="apiKeyInput">高德 Key：</label>
+            <input type="text" id="apiKeyInput" placeholder="JS API Key" autocomplete="off" style="width:200px;">
+            <label for="securityCodeInput">安全密钥：</label>
+            <input type="password" id="securityCodeInput" placeholder="securityJsCode（选填）" autocomplete="off" style="width:180px;">
+            <button id="saveApiKeyBtn" class="btn btn-sm">保存</button>
+            <a href="https://lbs.amap.com/api/javascript-api-v2/prerequisites" target="_blank" class="help-link" title="如何获取 API Key？">❓</a>
+            <span id="apiKeyStatus" class="status-text"></span>
+        </div>
+    </header>
+
+    <!-- 主体布局 -->
+    <div class="main-container">
+        <!-- 左侧边栏 -->
+        <aside class="sidebar">
+            <!-- 文件上传区 -->
+            <section class="panel">
+                <h3 class="panel-title">📁 文件上传</h3>
+                <div id="dropZone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <span class="drop-icon">📤</span>
+                        <p>拖拽文件到此处，或 <strong>点击选择</strong></p>
+                        <p class="hint">支持 .xlsx / .xls / .csv 格式</p>
+                    </div>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" hidden>
+                </div>
+                <div id="fileInfo" class="file-info" style="display:none;">
+                    <span id="fileName"></span>
+                    <span id="rowCount"></span>
+                </div>
+            </section>
+
+            <!-- 列映射配置 -->
+            <section class="panel" id="mappingPanel" style="display:none;">
+                <h3 class="panel-title">🔧 列映射配置</h3>
+                <div class="form-group">
+                    <label for="timeColumn">时间列</label>
+                    <select id="timeColumn" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="lngColumn">经度列 (Longitude)</label>
+                    <select id="lngColumn" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="latColumn">纬度列 (Latitude)</label>
+                    <select id="latColumn" class="form-select"></select>
+                </div>
+                <div class="form-group">
+                    <label for="placeColumn">地点列 (选填)</label>
+                    <select id="placeColumn" class="form-select"></select>
+                </div>
+                <button id="applyMappingBtn" class="btn btn-primary btn-block">应用并加载轨迹</button>
+            </section>
+
+            <!-- 日期切片器 -->
+            <section class="panel" id="dateSlicerPanel" style="display:none;">
+                <h3 class="panel-title">📅 日期筛选</h3>
+                <div class="date-slicer-toolbar">
+                    <button id="selectAllDates" class="btn btn-xs">全选</button>
+                    <button id="deselectAllDates" class="btn btn-xs">取消全选</button>
+                    <button id="invertDates" class="btn btn-xs">反选</button>
+                </div>
+                <div id="dateCheckboxList" class="date-list"></div>
+            </section>
+
+            <!-- 工作地点管理 -->
+            <section class="panel" id="workplacePanel" style="display:none;">
+                <h3 class="panel-title">📍 必经工作地点</h3>
+                <div id="workplaceList" class="workplace-list"></div>
+                <div class="workplace-form">
+                    <div class="form-group">
+                        <label for="wpName">地点名称</label>
+                        <input type="text" id="wpName" placeholder="例如：公司总部">
+                    </div>
+                    <div class="form-group">
+                        <label for="wpAddress">地址（自动定位）</label>
+                        <input type="text" id="wpAddress" placeholder="输入地址自动查询经纬度">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group form-group-half">
+                            <label for="wpLng">经度（手动）</label>
+                            <input type="text" id="wpLng" placeholder="116.397428">
+                        </div>
+                        <div class="form-group form-group-half">
+                            <label for="wpLat">纬度（手动）</label>
+                            <input type="text" id="wpLat" placeholder="39.90923">
+                        </div>
+                    </div>
+                    <button id="addWorkplaceBtn" class="btn btn-primary btn-block">+ 添加工作地点</button>
+                    <p class="hint">输入地址后自动查询经纬度，也可手动输入</p>
+                </div>
+            </section>
+
+            <!-- 数据预览 -->
+            <section class="panel" id="previewPanel" style="display:none;">
+                <h3 class="panel-title">📋 数据预览（前20行）</h3>
+                <div id="previewTable" class="preview-table-wrap"></div>
+            </section>
+
+            <!-- 配额追踪 -->
+            <section class="panel" id="quotaPanelWrap">
+                <h3 class="panel-title">📊 API 配额追踪</h3>
+                <div id="quotaPanel">
+                    <p class="hint" style="text-align:center;padding:12px;">加载中...</p>
+                </div>
+            </section>
+        </aside>
+
+        <!-- 可拖拽分隔条 -->
+        <div id="sidebarResizer" class="sidebar-resizer"></div>
+
+        <!-- 地图区域 -->
+        <main class="map-area">
+            <div id="mapContainer"></div>
+            <div id="mapFallback" class="map-fallback" style="display:none;">
+                <div class="map-fallback-content">
+                    <h2>🗺️ 地图加载中...</h2>
+                    <p>请先输入并保存高德地图 API Key</p>
+                    <p>获取方式：访问 <a href="https://lbs.amap.com/" target="_blank">高德开放平台</a> 注册并创建应用</p>
+                </div>
+            </div>
+            <div id="mapLegend" class="map-legend" style="display:none;"></div>
+        </main>
+    </div>
+
+    <!-- 底部状态栏 -->
+    <footer class="status-bar">
+        <span id="statusMessage">就绪 — 请先配置高德 API Key，然后上传数据文件</span>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>
