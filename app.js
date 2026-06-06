@@ -291,43 +291,11 @@ const COLOR_PALETTE = [
 
 // ==================== 高德 API Key 管理 ====================
 function initApiKey() {
-    const savedKey = localStorage.getItem('amap_api_key');
-    const savedCode = localStorage.getItem('amap_security_code');
-    if (savedKey) {
-        state.apiKey = savedKey;
-        document.getElementById('apiKeyInput').value = savedKey;
-    }
-    if (savedCode) {
-        state.securityCode = savedCode;
-        document.getElementById('securityCodeInput').value = savedCode;
-    }
-    if (savedKey) {
-        updateApiKeyStatus('已加载已保存的 Key', 'success');
-        loadAmapScript();
-    }
-
-    document.getElementById('saveApiKeyBtn').addEventListener('click', saveApiKey);
-    document.getElementById('apiKeyInput').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') saveApiKey();
-    });
-}
-
-function saveApiKey() {
-    const key = document.getElementById('apiKeyInput').value.trim();
-    const code = document.getElementById('securityCodeInput').value.trim();
-    if (!key) {
-        updateApiKeyStatus('请输入有效的 API Key', 'error');
-        return;
-    }
-    state.apiKey = key;
-    state.securityCode = code;
-    localStorage.setItem('amap_api_key', key);
-    if (code) {
-        localStorage.setItem('amap_security_code', code);
-    } else {
-        localStorage.removeItem('amap_security_code');
-    }
-    updateApiKeyStatus('API Key 已保存 ✓', 'success');
+    // 硬编码 Key（密码门禁保护，外人看不到）
+    const builtinKey = 'bcdaa50636b045e306bac2b32ab3cce1';
+    state.apiKey = builtinKey;
+    document.getElementById('apiKeyInput').value = builtinKey;
+    updateApiKeyStatus('地图 API 加载中...', 'success');
     loadAmapScript();
 }
 

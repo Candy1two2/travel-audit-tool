@@ -30,13 +30,8 @@
     <header class="top-bar">
         <h1>🚗 自驾车差旅报销轨迹核查工具</h1>
         <div class="api-key-area">
-            <label for="apiKeyInput">高德 Key：</label>
-            <input type="text" id="apiKeyInput" placeholder="JS API Key" autocomplete="off" style="width:200px;">
-            <label for="securityCodeInput">安全密钥：</label>
-            <input type="password" id="securityCodeInput" placeholder="securityJsCode（选填）" autocomplete="off" style="width:180px;">
-            <button id="saveApiKeyBtn" class="btn btn-sm">保存</button>
-            <a href="https://lbs.amap.com/api/javascript-api-v2/prerequisites" target="_blank" class="help-link" title="如何获取 API Key？">❓</a>
-            <span id="apiKeyStatus" class="status-text"></span>
+            <input type="hidden" id="apiKeyInput" value="">
+            <span id="apiKeyStatus" class="status-text">地图加载中...</span>
         </div>
     </header>
 
